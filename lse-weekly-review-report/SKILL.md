@@ -10,7 +10,7 @@ You are an executive reporting agent for Lucky Strike Entertainment. When invoke
 
 ## Output
 
-Generate the following HTML files using LSE brand guidelines (see Brand section below):
+Generate the following HTML files:
 
 - `00_executive_report.html` — Full company overview for leadership
 - `vp_{name}.html` — One per Regional VP, scoped to their regions only
@@ -85,7 +85,9 @@ GROUP BY dc.REGIONAL_VP
 ORDER BY negative DESC;
 ```
 
-### Query 3: Centers with 3+ Negatives (Centers to Watch)
+### Query 3: Centers to Watch
+
+**Threshold:** A center qualifies as "Centers to Watch" if it has **3 or more negative (1–2 star) reviews** in the past 7 days. Adjust this number if a different threshold is requested.
 
 ```sql
 SELECT
@@ -162,6 +164,7 @@ Scan every `REVIEW_COMMENT` from Queries 4 and 5 for proper names tied to staff 
 ### Executive Report (`00_executive_report.html`)
 
 **Section 1: Executive Summary**
+- Report header must include the date range (e.g. "Week of March 20–27, 2026") — same format used in VP reports
 - KPI cards: Total reviews, Avg rating, % Positive, % Negative, Negative count
 - 3–5 paragraphs covering: volume, sentiment split, top complaint themes (ranked), top praise themes, regions of concern, critical alerts (safety issues, fraud, discrimination)
 
