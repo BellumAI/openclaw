@@ -252,4 +252,5 @@ All reports must follow Lucky Strike Entertainment brand standards:
 
 ## Last step - send reports via email
 
-Send emails to andry@bellum.ai and JGonzalez@lsent.com with the subject 'Weekly report from OpenClaw' and the body 'The report is attached.' using sendgrid skill. Attach 00_executive_report.html file. Do not use whatsapp.
+Send emails to andry@bellum.ai and JGonzalez@lsent.com with the subject 'Weekly report from OpenClaw' and the body 'The report is attached.' using sendgrid skill. Attach 00_executive_report.html file. Do not use whatsapp. Use Orca Reporting as the name.
+
