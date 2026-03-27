@@ -40,7 +40,7 @@ Key columns: `CENTER_ID_INT` (NUMBER PK), `BRAND`, `CENTER_NAME`, `CITY`, `STATE
 
 ## Step 1 — Run Queries
 
-Run all five queries before generating any reports. They provide all the data needed for every report.
+Run all nine queries before generating any reports. They provide all the data needed for every report.
 
 ### Query 1: Overall Summary by Region
 
@@ -105,6 +105,83 @@ HAVING neg_count >= 3
 ORDER BY dc.REGIONAL_VP, neg_count DESC;
 ```
 
+### Query 6: Week-over-Week Comparison
+
+Used to show trend vs the prior 7-day period in the Executive Summary.
+
+```sql
+SELECT
+    COUNT(DISTINCT r.RESPONSE_ID) AS total_reviews,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (1,2) THEN r.RESPONSE_ID END) AS negative,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (4,5) THEN r.RESPONSE_ID END) AS positive,
+    ROUND(AVG(r.REVIEW_RATING), 2) AS avg_rating
+FROM LUCKYSTRIKE_ANALYSIS.MARKETING.FACT_SOCIAL_REVIEW r
+JOIN LUCKYSTRIKE_ANALYSIS.SHARED.DIM_CENTER dc ON r.CENTER_ID_INT = dc.CENTER_ID_INT
+WHERE r.SURVEY_DATE >= DATEADD('day', -14, CURRENT_DATE())
+    AND r.SURVEY_DATE < DATEADD('day', -7, CURRENT_DATE())
+    AND r.HAS_REVIEW_COMMENT = TRUE;
+```
+
+### Query 7: Summary by Brand
+
+Used for the Brand Performance table in the Executive Summary.
+
+```sql
+SELECT
+    dc.BRAND,
+    COUNT(DISTINCT r.RESPONSE_ID) AS total_reviews,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (1,2) THEN r.RESPONSE_ID END) AS negative,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (4,5) THEN r.RESPONSE_ID END) AS positive,
+    ROUND(AVG(r.REVIEW_RATING), 2) AS avg_rating,
+    ROUND(COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (1,2) THEN r.RESPONSE_ID END) * 100.0 /
+        NULLIF(COUNT(DISTINCT r.RESPONSE_ID), 0), 1) AS pct_negative
+FROM LUCKYSTRIKE_ANALYSIS.MARKETING.FACT_SOCIAL_REVIEW r
+JOIN LUCKYSTRIKE_ANALYSIS.SHARED.DIM_CENTER dc ON r.CENTER_ID_INT = dc.CENTER_ID_INT
+WHERE r.SURVEY_DATE >= DATEADD('day', -7, CURRENT_DATE()) AND r.HAS_REVIEW_COMMENT = TRUE
+GROUP BY dc.BRAND
+ORDER BY negative DESC;
+```
+
+### Query 8: Summary by Review Source
+
+Used for the Review Source Breakdown in the Executive Summary.
+
+```sql
+SELECT
+    r.REVIEW_SOURCE,
+    COUNT(DISTINCT r.RESPONSE_ID) AS total_reviews,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (1,2) THEN r.RESPONSE_ID END) AS negative,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (4,5) THEN r.RESPONSE_ID END) AS positive,
+    ROUND(AVG(r.REVIEW_RATING), 2) AS avg_rating,
+    ROUND(COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (1,2) THEN r.RESPONSE_ID END) * 100.0 /
+        NULLIF(COUNT(DISTINCT r.RESPONSE_ID), 0), 1) AS pct_negative
+FROM LUCKYSTRIKE_ANALYSIS.MARKETING.FACT_SOCIAL_REVIEW r
+JOIN LUCKYSTRIKE_ANALYSIS.SHARED.DIM_CENTER dc ON r.CENTER_ID_INT = dc.CENTER_ID_INT
+WHERE r.SURVEY_DATE >= DATEADD('day', -7, CURRENT_DATE()) AND r.HAS_REVIEW_COMMENT = TRUE
+GROUP BY r.REVIEW_SOURCE
+ORDER BY total_reviews DESC;
+```
+
+### Query 9: Top Performing Centers
+
+Used for the Top Centers section in the Executive Summary. Requires at least 5 reviews to qualify.
+
+```sql
+SELECT
+    dc.CENTER_NAME, dc.BRAND, dc.CITY, dc.STATE, dc.REGION, dc.DISTRICT,
+    dc.REGIONAL_VP, dc.CENTER_MANAGER,
+    COUNT(DISTINCT r.RESPONSE_ID) AS total_reviews,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (4,5) THEN r.RESPONSE_ID END) AS positive,
+    ROUND(AVG(r.REVIEW_RATING), 2) AS avg_rating
+FROM LUCKYSTRIKE_ANALYSIS.MARKETING.FACT_SOCIAL_REVIEW r
+JOIN LUCKYSTRIKE_ANALYSIS.SHARED.DIM_CENTER dc ON r.CENTER_ID_INT = dc.CENTER_ID_INT
+WHERE r.SURVEY_DATE >= DATEADD('day', -7, CURRENT_DATE()) AND r.HAS_REVIEW_COMMENT = TRUE
+GROUP BY 1,2,3,4,5,6,7,8
+HAVING COUNT(DISTINCT r.RESPONSE_ID) >= 5
+ORDER BY avg_rating DESC, positive DESC
+LIMIT 10;
+```
+
 ### Query 4: All 1–2 Star Reviews (for employee scanning + worst reviews)
 
 ```sql
@@ -164,11 +241,15 @@ Scan every `REVIEW_COMMENT` from Queries 4 and 5 for proper names tied to staff 
 
 **Section 1: Executive Summary**
 - Report header must include the date range (e.g. "Week of March 20–27, 2026") — same format used in VP reports
-- KPI cards: Total reviews, Avg rating, % Positive, % Negative, Negative count
+- KPI cards: Total reviews, Avg rating, % Positive, % Negative, Negative count — each card must show a week-over-week change indicator (e.g. ▲ +12% vs prior week) using data from Query 6
 - 3–5 paragraphs covering: volume, sentiment split, top complaint themes (ranked), top praise themes, regions of concern, critical alerts (safety issues, fraud, discrimination)
+- **Brand Performance Table** (from Query 7): Brand, Total Reviews, Negative, Positive, Avg Rating, % Negative — sorted by negative count descending
+- **Review Source Breakdown** (from Query 8): Source (Google, Yelp), Total Reviews, Avg Rating, % Negative — helps leadership understand which platform is driving issues
+- **Top Performing Centers** (from Query 9): Top 10 centers by avg rating with 5+ reviews — Center, Brand, Location, Region, VP, Avg Rating, Total Reviews
 
 **Section 2: Regional VP Scorecard**
 - Table: VP name, regions covered, total reviews, star breakdown (1–5), negative count, avg rating
+- Add a **vs. Company Avg** column showing ▲ above or ▼ below the company-wide avg rating (calculated from Query 1 totals)
 - Sort by negative count descending
 
 **Section 3: Employee Mentions (all VPs)**
