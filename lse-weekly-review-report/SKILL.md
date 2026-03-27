@@ -1,10 +1,10 @@
 ---
 name: lse-weekly-review-report
-description: Generate weekly HTML review reports from Snowflake — one executive summary and one per Regional VP. Covers worst reviews by region, employee mentions (positive and negative), and centers to watch. Use when asked for review report, social review summary, weekly reviews, guest feedback, bad reviews, or regional VP reports.
+description: Generate weekly InMoment HTML reports from Snowflake — one executive summary and one per Regional VP. Covers worst reviews by region, employee mentions (positive and negative), and centers to watch. Use when asked for InMoment report, weekly review report, weekly reviews, regional VP reports, centers to watch, employee mentions, or bad reviews.
 user-invocable: true
 ---
 
-# Weekly Social Review Report Generator
+# Weekly InMoment Report Generator
 
 You are an executive reporting agent for Lucky Strike Entertainment. When invoked, query the Snowflake data warehouse for the past week's guest reviews and produce a set of branded HTML reports: **1 executive report** + **1 report per Regional VP**.
 
@@ -13,19 +13,18 @@ You are an executive reporting agent for Lucky Strike Entertainment. When invoke
 Generate the following HTML files:
 
 - `00_executive_report.html` — Full company overview for leadership
-- `vp_{name}.html` — One per Regional VP, scoped to their regions only
+- `vp_{name}.html` — One per Regional VP, scoped to their regions only. `{name}` is the VP's full name in lowercase with underscores (e.g. `vp_allen_morrison.html`).
 
-Each file is a self-contained branded HTML page.
+Each file is a self-contained branded HTML page. Write all files to the current working directory.
 
 ---
 
 ## Data Source
 
-use Snowflake REST API to run sql queries
+Use the Snowflake REST API to run SQL queries.
 
-take Snowflake REST API endpoint from CORTEX_BASE_URL environment variable
-
-take Snowflake PAT key from CORTEX_API_KEY environment variable
+- Read the Snowflake REST API endpoint from the `CORTEX_BASE_URL` environment variable.
+- Read the Snowflake PAT key from the `CORTEX_API_KEY` environment variable.
 
 Join these two tables on `CENTER_ID_INT`:
 
@@ -41,7 +40,7 @@ Key columns: `CENTER_ID_INT` (NUMBER PK), `BRAND`, `CENTER_NAME`, `CITY`, `STATE
 
 ## Step 1 — Run Queries
 
-Execute these four queries. They provide all the data needed for every report.
+Run all five queries before generating any reports. They provide all the data needed for every report.
 
 ### Query 1: Overall Summary by Region
 
@@ -178,7 +177,7 @@ Scan every `REVIEW_COMMENT` from Queries 4 and 5 for proper names tied to staff 
 
 **Section 4: Centers to Watch**
 - Table: Center, Brand, Location, Region/District, Neg count, Total, Avg, Center Manager, Area Manager
-- Only centers with 3+ negatives
+- Only centers meeting the Centers to Watch threshold (default: 3+ negative reviews)
 
 ### Regional VP Reports (`vp_{name}.html`)
 
@@ -216,7 +215,7 @@ If a VP has no employee mentions or no centers to watch, say so explicitly rathe
 
 ---
 
-## Last step - send reports via email
+## Step 4 — Send Reports via Email
 
-Send emails to andry@bellum.ai and JGonzalez@lsent.com with the subject 'Weekly InMoment Reporting' and the body 'All reports attached' using sendgrid skill. Attach all HTML files generated in Step 3 (00_executive_report.html and all vp_*.html files) to the email. Do not use whatsapp. Use Orca Reporting as the sender name.
+Send emails to andry@bellum.ai and JGonzalez@lsent.com with the subject 'Weekly InMoment Report' and the body 'All reports attached' using sendgrid skill. Attach all HTML files generated in Step 3 (00_executive_report.html and all vp_*.html files) to the email. Do not use whatsapp. Use Orca Reporting as the sender name.
 
