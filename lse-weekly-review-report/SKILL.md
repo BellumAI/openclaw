@@ -199,43 +199,6 @@ If a VP has no employee mentions or no centers to watch, say so explicitly rathe
 
 ---
 
-## Brand Guidelines (HTML)
-
-All reports must follow Lucky Strike Entertainment brand standards:
-
-**Colors (CSS variables):**
-```css
-:root {
-  --lse-red: #DB3434;
-  --lse-deep-red: #BD2D2D;
-  --lse-charcoal: #171717;
-  --lse-dark-gray: #2B2B2B;
-  --lse-medium-gray: #727272;
-  --lse-light-gray: #F2F2F2;
-  --lse-white: #FFFFFF;
-  --lse-font: 'Wix Madefor Text', Inter, Arial, sans-serif;
-  --lse-radius: 12px;
-}
-```
-
-**Typography:** Load Wix Madefor Text via Google Fonts:
-```html
-<link href="https://fonts.googleapis.com/css2?family=Wix+Madefor+Text:wght@400;600&display=swap" rel="stylesheet">
-```
-
-**Layout elements:**
-- **Header bar:** Charcoal background, "LUCKY ✕ STRIKE" logo text left in white (600 weight, 18px, 2px letter-spacing), report title right in light-gray
-- **Container:** max-width 960px, centered, 32px padding
-- **H1:** Red (#DB3434), 28px, 600 weight, 2px red bottom border
-- **H2:** Charcoal, 20px, 600 weight
-- **Tables:** Charcoal header row with white text, alternating white/light-gray body rows, 13px font
-- **KPI cards:** Flex row, 36px red number, 11px uppercase gray label, 12px border-radius, subtle shadow
-- **Alert cards:** White background, 1px light-gray border, 4px left border (red for negative, #1A8A3E green for positive), 12px border-radius
-- **Footer:** Light-gray background, centered medium-gray text, "© {year} Lucky Strike Entertainment"
-- **Responsive:** Flex-direction column on screens <640px
-
----
-
 ## Formatting Rules
 
 - Bold key metrics and employee names for scannability
