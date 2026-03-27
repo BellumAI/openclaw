@@ -282,6 +282,27 @@ If a VP has no employee mentions or no centers to watch, say so explicitly rathe
 
 ---
 
+## Interactive Filters (Client-Side JavaScript)
+
+All filters are implemented as client-side JavaScript — no additional queries required. Filters apply instantly without reloading the page.
+
+**Filters to include on every report:**
+
+- **Star Rating Filter** — Button group: `All | ⭐1 | ⭐2 | ⭐3 | ⭐4 | ⭐5` — filters any table or card that contains a rating column. Multiple ratings can be selected simultaneously.
+- **Region Filter** — Dropdown populated dynamically from the data in that report — filters any table containing a Region column. On VP reports, only the regions covered by that VP appear.
+- **Brand Filter** — Dropdown populated dynamically from the data in that report (e.g. Lucky Strike, Bowlero, AMF, Boomers) — filters any table containing a Brand column.
+- **Sentiment Filter** — Button group: `All | 🔴 Negative | 🟢 Positive` — filters the Employee Mentions table and alert cards by sentiment.
+
+**Implementation rules:**
+- Place the filter bar directly above each filterable table or section, not at the top of the page
+- Active filter buttons should be visually highlighted using `--lse-red` background with white text
+- Inactive filter buttons should use light-gray background with charcoal text
+- When a filter returns no results, show a message: *"No results match the selected filters."*
+- All filter state is reset when the page is reloaded
+- Filters only affect tables and alert cards — KPI cards and summary paragraphs are never filtered
+
+---
+
 ## Formatting Rules
 
 - Bold key metrics and employee names for scannability
