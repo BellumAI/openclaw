@@ -14,3 +14,7 @@ run follow local commands
 cd /home/node/.openclaw/skills
 
 git pull
+
+### Last
+
+report errors if any
