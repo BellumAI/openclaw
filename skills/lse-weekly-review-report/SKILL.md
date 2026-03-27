@@ -1,0 +1,255 @@
+---
+name: lse-weekly-review-report
+description: Generate weekly HTML review reports from Snowflake — one executive summary and one per Regional VP. Covers worst reviews by region, employee mentions (positive and negative), and centers to watch. Use when asked for review report, social review summary, weekly reviews, guest feedback, bad reviews, or regional VP reports.
+user-invocable: true
+---
+
+# Weekly Social Review Report Generator
+
+You are an executive reporting agent for Lucky Strike Entertainment. When invoked, query the Snowflake data warehouse for the past week's guest reviews and produce a set of branded HTML reports: **1 executive report** + **1 report per Regional VP**.
+
+## Output
+
+Generate the following HTML files using LSE brand guidelines (see Brand section below):
+
+- `00_executive_report.html` — Full company overview for leadership
+- `vp_{name}.html` — One per Regional VP, scoped to their regions only
+
+Each file is a self-contained branded HTML page.
+
+---
+
+## Data Source
+
+use Snowflake REST API to run sql queries
+
+take Snowflake REST API endpoint from CORTEX_BASE_URL environment variable
+
+take Snowflake PAT key from CORTEX_API_KEY environment variable
+
+Join these two tables on `CENTER_ID_INT`:
+
+**Reviews:** `LUCKYSTRIKE_ANALYSIS.MARKETING.FACT_SOCIAL_REVIEW`
+Columns: `RESPONSE_ID` (NUMBER PK), `CENTER_ID_INT` (NUMBER FK), `SURVEY_DATE` (DATE), `REVIEW_SOURCE` (VARCHAR — Google+, Yelp), `REVIEW_RATING` (NUMBER 1–5), `REVIEW_COMMENT` (VARCHAR 4000), `HAS_REVIEW_COMMENT` (BOOLEAN)
+
+**Centers:** `LUCKYSTRIKE_ANALYSIS.SHARED.DIM_CENTER`
+Key columns: `CENTER_ID_INT` (NUMBER PK), `BRAND`, `CENTER_NAME`, `CITY`, `STATE`, `REGION`, `DISTRICT`, `CENTER_MANAGER`, `AREA_MANAGER`, `DISTRICT_MANAGER`, `REGIONAL_VP`
+
+**Important:** The join may produce duplicate rows because centers can map to multiple dimension records. Always use `SELECT DISTINCT` or `COUNT(DISTINCT r.RESPONSE_ID)` for accurate counts.
+
+---
+
+## Step 1 — Run Queries
+
+Execute these four queries. They provide all the data needed for every report.
+
+### Query 1: Overall Summary by Region
+
+```sql
+SELECT
+    dc.REGION,
+    COUNT(DISTINCT r.RESPONSE_ID) AS total_reviews,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING = 1 THEN r.RESPONSE_ID END) AS star_1,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING = 2 THEN r.RESPONSE_ID END) AS star_2,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING = 3 THEN r.RESPONSE_ID END) AS star_3,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING = 4 THEN r.RESPONSE_ID END) AS star_4,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING = 5 THEN r.RESPONSE_ID END) AS star_5,
+    ROUND(AVG(r.REVIEW_RATING), 2) AS avg_rating
+FROM LUCKYSTRIKE_ANALYSIS.MARKETING.FACT_SOCIAL_REVIEW r
+JOIN LUCKYSTRIKE_ANALYSIS.SHARED.DIM_CENTER dc ON r.CENTER_ID_INT = dc.CENTER_ID_INT
+WHERE r.SURVEY_DATE >= DATEADD('day', -7, CURRENT_DATE()) AND r.HAS_REVIEW_COMMENT = TRUE
+GROUP BY dc.REGION
+ORDER BY star_1 DESC;
+```
+
+### Query 2: Summary by Regional VP
+
+```sql
+SELECT
+    dc.REGIONAL_VP,
+    COUNT(DISTINCT r.RESPONSE_ID) AS total_reviews,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (1,2) THEN r.RESPONSE_ID END) AS negative,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (4,5) THEN r.RESPONSE_ID END) AS positive,
+    ROUND(AVG(r.REVIEW_RATING), 2) AS avg_rating,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING = 1 THEN r.RESPONSE_ID END) AS star_1,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING = 2 THEN r.RESPONSE_ID END) AS star_2,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING = 3 THEN r.RESPONSE_ID END) AS star_3,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING = 4 THEN r.RESPONSE_ID END) AS star_4,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING = 5 THEN r.RESPONSE_ID END) AS star_5,
+    LISTAGG(DISTINCT dc.REGION, ', ') WITHIN GROUP (ORDER BY dc.REGION) AS regions
+FROM LUCKYSTRIKE_ANALYSIS.MARKETING.FACT_SOCIAL_REVIEW r
+JOIN LUCKYSTRIKE_ANALYSIS.SHARED.DIM_CENTER dc ON r.CENTER_ID_INT = dc.CENTER_ID_INT
+WHERE r.SURVEY_DATE >= DATEADD('day', -7, CURRENT_DATE()) AND r.HAS_REVIEW_COMMENT = TRUE
+    AND dc.REGIONAL_VP IS NOT NULL AND dc.REGIONAL_VP != ''
+GROUP BY dc.REGIONAL_VP
+ORDER BY negative DESC;
+```
+
+### Query 3: Centers with 3+ Negatives (Centers to Watch)
+
+```sql
+SELECT
+    dc.REGIONAL_VP,
+    dc.CENTER_NAME, dc.BRAND, dc.CITY, dc.STATE, dc.REGION, dc.DISTRICT,
+    dc.CENTER_MANAGER, dc.AREA_MANAGER, dc.DISTRICT_MANAGER,
+    COUNT(DISTINCT CASE WHEN r.REVIEW_RATING IN (1,2) THEN r.RESPONSE_ID END) AS neg_count,
+    COUNT(DISTINCT r.RESPONSE_ID) AS total_reviews,
+    ROUND(AVG(r.REVIEW_RATING), 2) AS avg_rating
+FROM LUCKYSTRIKE_ANALYSIS.MARKETING.FACT_SOCIAL_REVIEW r
+JOIN LUCKYSTRIKE_ANALYSIS.SHARED.DIM_CENTER dc ON r.CENTER_ID_INT = dc.CENTER_ID_INT
+WHERE r.SURVEY_DATE >= DATEADD('day', -7, CURRENT_DATE()) AND r.HAS_REVIEW_COMMENT = TRUE
+    AND dc.REGIONAL_VP IS NOT NULL AND dc.REGIONAL_VP != ''
+GROUP BY 1,2,3,4,5,6,7,8,9,10
+HAVING neg_count >= 3
+ORDER BY dc.REGIONAL_VP, neg_count DESC;
+```
+
+### Query 4: All 1–2 Star Reviews (for employee scanning + worst reviews)
+
+```sql
+SELECT DISTINCT
+    r.RESPONSE_ID, r.SURVEY_DATE, r.REVIEW_SOURCE, r.REVIEW_RATING, r.REVIEW_COMMENT,
+    dc.CENTER_NAME, dc.BRAND, dc.CITY, dc.STATE, dc.REGION, dc.DISTRICT,
+    dc.CENTER_MANAGER, dc.AREA_MANAGER, dc.DISTRICT_MANAGER, dc.REGIONAL_VP
+FROM LUCKYSTRIKE_ANALYSIS.MARKETING.FACT_SOCIAL_REVIEW r
+JOIN LUCKYSTRIKE_ANALYSIS.SHARED.DIM_CENTER dc ON r.CENTER_ID_INT = dc.CENTER_ID_INT
+WHERE r.SURVEY_DATE >= DATEADD('day', -7, CURRENT_DATE()) AND r.HAS_REVIEW_COMMENT = TRUE
+    AND r.REVIEW_RATING <= 2
+ORDER BY dc.REGIONAL_VP, dc.REGION, r.REVIEW_RATING, r.SURVEY_DATE DESC;
+```
+
+### Query 5: All 4–5 Star Reviews (for positive employee shout-outs)
+
+```sql
+SELECT DISTINCT
+    r.RESPONSE_ID, r.SURVEY_DATE, r.REVIEW_SOURCE, r.REVIEW_RATING, r.REVIEW_COMMENT,
+    dc.CENTER_NAME, dc.BRAND, dc.CITY, dc.STATE, dc.REGION, dc.DISTRICT,
+    dc.CENTER_MANAGER, dc.AREA_MANAGER, dc.DISTRICT_MANAGER, dc.REGIONAL_VP
+FROM LUCKYSTRIKE_ANALYSIS.MARKETING.FACT_SOCIAL_REVIEW r
+JOIN LUCKYSTRIKE_ANALYSIS.SHARED.DIM_CENTER dc ON r.CENTER_ID_INT = dc.CENTER_ID_INT
+WHERE r.SURVEY_DATE >= DATEADD('day', -7, CURRENT_DATE()) AND r.HAS_REVIEW_COMMENT = TRUE
+    AND r.REVIEW_RATING >= 4
+ORDER BY dc.REGIONAL_VP, dc.REGION, r.REVIEW_RATING DESC, r.SURVEY_DATE DESC;
+```
+
+---
+
+## Step 2 — Scan for Employee Mentions
+
+Scan every `REVIEW_COMMENT` from Queries 4 and 5 for proper names tied to staff roles.
+
+**Look for:**
+- Capitalized first names appearing as staff (e.g., "the manager, Darius", "our server Alice", "bartender named Mike")
+- Role references tied to a name (e.g., "worker Vanessa", "host Xavier", "GM Melissa")
+
+**Exclude:**
+- Generic role mentions with no name (e.g., "the manager was rude")
+- Guest names or names of people outside the business
+
+**For each match, extract:**
+- Employee name (as written), role (if stated), center name, region, Regional VP
+- Review rating, sentiment (positive or negative)
+- Brief description of what the review said about them (1–2 sentences)
+
+**Categorize each mention as:**
+- 🔴 **Negative** (rating 1–2) — include a recommended follow-up action
+- 🟢 **Positive** (rating 4–5) — include as a recognition opportunity
+
+---
+
+## Step 3 — Generate HTML Reports
+
+### Executive Report (`00_executive_report.html`)
+
+**Section 1: Executive Summary**
+- KPI cards: Total reviews, Avg rating, % Positive, % Negative, Negative count
+- 3–5 paragraphs covering: volume, sentiment split, top complaint themes (ranked), top praise themes, regions of concern, critical alerts (safety issues, fraud, discrimination)
+
+**Section 2: Regional VP Scorecard**
+- Table: VP name, regions covered, total reviews, star breakdown (1–5), negative count, avg rating
+- Sort by negative count descending
+
+**Section 3: Employee Mentions (all VPs)**
+- Table: Employee, Role, Center, Region, Rating, Sentiment, Key Issue
+- Include both negative and positive mentions
+
+**Section 4: Centers to Watch**
+- Table: Center, Brand, Location, Region/District, Neg count, Total, Avg, Center Manager, Area Manager
+- Only centers with 3+ negatives
+
+### Regional VP Reports (`vp_{name}.html`)
+
+Each VP report is scoped to only their regions and contains:
+
+**Section 1: Summary**
+- KPI cards: Total reviews, Avg rating, % Positive, % Negative, Negative count
+- Star breakdown table (1–5)
+- Regions listed in subtitle
+
+**Section 2: Employee Mentions (this VP only)**
+- Same table format as executive
+- After table, render each mention as an alert card:
+  - 🔴 Negative mentions: red left-bordered card with issue summary and recommended action
+  - 🟢 Positive mentions: green left-bordered card labeled as recognition opportunity
+
+**Section 3: Centers to Watch (this VP only)**
+- Same table format as executive, filtered to their centers
+
+If a VP has no employee mentions or no centers to watch, say so explicitly rather than omitting the section.
+
+---
+
+## Brand Guidelines (HTML)
+
+All reports must follow Lucky Strike Entertainment brand standards:
+
+**Colors (CSS variables):**
+```css
+:root {
+  --lse-red: #DB3434;
+  --lse-deep-red: #BD2D2D;
+  --lse-charcoal: #171717;
+  --lse-dark-gray: #2B2B2B;
+  --lse-medium-gray: #727272;
+  --lse-light-gray: #F2F2F2;
+  --lse-white: #FFFFFF;
+  --lse-font: 'Wix Madefor Text', Inter, Arial, sans-serif;
+  --lse-radius: 12px;
+}
+```
+
+**Typography:** Load Wix Madefor Text via Google Fonts:
+```html
+<link href="https://fonts.googleapis.com/css2?family=Wix+Madefor+Text:wght@400;600&display=swap" rel="stylesheet">
+```
+
+**Layout elements:**
+- **Header bar:** Charcoal background, "LUCKY ✕ STRIKE" logo text left in white (600 weight, 18px, 2px letter-spacing), report title right in light-gray
+- **Container:** max-width 960px, centered, 32px padding
+- **H1:** Red (#DB3434), 28px, 600 weight, 2px red bottom border
+- **H2:** Charcoal, 20px, 600 weight
+- **Tables:** Charcoal header row with white text, alternating white/light-gray body rows, 13px font
+- **KPI cards:** Flex row, 36px red number, 11px uppercase gray label, 12px border-radius, subtle shadow
+- **Alert cards:** White background, 1px light-gray border, 4px left border (red for negative, #1A8A3E green for positive), 12px border-radius
+- **Footer:** Light-gray background, centered medium-gray text, "© {year} Lucky Strike Entertainment"
+- **Responsive:** Flex-direction column on screens <640px
+
+---
+
+## Formatting Rules
+
+- Bold key metrics and employee names for scannability
+- Use emoji sparingly: ⭐ ratings, 🔴/🟢 sentiment, ⚠️ alerts, 🔍 centers to watch, 📊 summary, 📈 scorecard
+- Keep summaries concise — these are for executives and regional leaders
+- Always attribute reviews to the specific center name, not just the brand
+- Include full management chain so leadership knows who to follow up with
+- Do not editorialize — report what the data shows
+- For negative employee mentions, always include a recommended action (e.g., "Center manager should review with employee", "Escalate to district manager for investigation")
+- For positive employee mentions, always frame as a recognition opportunity
+- Flag safety-critical reviews (drink tampering, injury, discrimination, fraud) as critical alerts requiring immediate investigation
+
+---
+
+## Last step - send reports via email
+
+Send emails to andry@bellum.ai and JGonzalez@lsent.com with the subject 'Weekly report from OpenClaw' and the body 'The report is attached.' using sendgrid skill. Attach 00_executive_report.html file. Do not use whatsapp.
