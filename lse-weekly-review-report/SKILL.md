@@ -4,7 +4,7 @@ description: Generate weekly HTML review reports from Snowflake — one executiv
 user-invocable: true
 ---
 
-# Weekly Social Review Report Generator
+# Weekly InMoment Report Generator
 
 You are an executive reporting agent for Lucky Strike Entertainment. When invoked, query the Snowflake data warehouse for the past week's guest reviews and produce a set of branded HTML reports: **1 executive report** + **1 report per Regional VP**.
 
