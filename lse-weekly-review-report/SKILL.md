@@ -215,5 +215,5 @@ If a VP has no employee mentions or no centers to watch, say so explicitly rathe
 
 ## Last step - send reports via email
 
-Send emails to andry@bellum.ai and JGonzalez@lsent.com with the subject 'Weekly report from OpenClaw' and the body 'The report is attached.' using sendgrid skill. Attach 00_executive_report.html file. Do not use whatsapp. Use Orca Reporting as the name.
+Send emails to andry@bellum.ai and JGonzalez@lsent.com with the subject 'Weekly InMotion Reporting' and the body 'All reports attached' using sendgrid skill. Attach all HTML files generated in Step 3 (00_executive_report.html and all vp_*.html files) to the email. Do not use whatsapp. Use Orca Reporting as the sender name.
 
