@@ -270,10 +270,12 @@ Each VP report is scoped to only their regions and contains:
 - Regions listed in subtitle
 
 **Section 2: Employee Mentions (this VP only)**
-- Same table format as executive
-- After table, render each mention as an alert card:
-  - 🔴 Negative mentions: red left-bordered card with issue summary and recommended action
-  - 🟢 Positive mentions: green left-bordered card labeled as recognition opportunity
+- Show a brief count header above the cards (e.g., "2 negative · 5 positive mentions this week")
+- Group into two subsections: **Negative Mentions** first, then **Positive Mentions**
+- Render each mention as an alert card — no separate summary table:
+  - 🔴 Negative: red left-bordered card showing employee name, role, center, star rating, issue summary, and recommended action
+  - 🟢 Positive: green left-bordered card showing employee name, role, center, star rating, and what was praised — framed as a recognition opportunity
+- If no mentions exist, say so explicitly rather than omitting the section
 
 **Section 3: Centers to Watch (this VP only)**
 - Same table format as executive, filtered to their centers
